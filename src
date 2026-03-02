@@ -1,0 +1,457 @@
+import { useState, useCallback } from "react";
+
+const COLORS = {
+  navy: "#0B1426", card: "#0F2040", card2: "#162952",
+  blue: "#1A56DB", cyan: "#06B6D4", gold: "#F59E0B",
+  green: "#10B981", red: "#EF4444", gray: "#94A3B8",
+  gray2: "#64748B", white: "#F8FAFC", light: "#E2E8F0",
+};
+
+const styles = {
+  app: { display:"flex", flexDirection:"column", height:"100vh", background:COLORS.navy, color:COLORS.white, fontFamily:"'Segoe UI', system-ui, sans-serif", overflow:"hidden" },
+  header: { display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 20px", borderBottom:`1px solid rgba(255,255,255,0.08)`, background:"rgba(11,20,38,0.95)", flexShrink:0 },
+  logo: { display:"flex", alignItems:"center", gap:8, fontSize:18, fontWeight:800, letterSpacing:-0.5 },
+  logoIcon: { width:32, height:32, background:`linear-gradient(135deg, ${COLORS.cyan}, ${COLORS.blue})`, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 },
+  badge: { background:"rgba(6,182,212,0.15)", border:`1px solid rgba(6,182,212,0.35)`, color:COLORS.cyan, padding:"4px 12px", borderRadius:20, fontSize:11, fontWeight:600 },
+  body: { display:"flex", flex:1, overflow:"hidden" },
+  sidebar: { width:200, flexShrink:0, background:"rgba(15,32,64,0.7)", borderRight:`1px solid rgba(255,255,255,0.07)`, display:"flex", flexDirection:"column", padding:"12px 8px", gap:2, overflowY:"auto" },
+  navSection: { fontSize:9, fontWeight:700, letterSpacing:2, textTransform:"uppercase", color:COLORS.gray2, padding:"8px 8px 4px" },
+  main: { flex:1, overflowY:"auto", padding:"20px 24px", display:"flex", flexDirection:"column", gap:16 },
+  pageTitle: { fontSize:20, fontWeight:800, letterSpacing:-0.5, marginBottom:2 },
+  pageSub: { fontSize:12, color:COLORS.gray },
+  card: { background:COLORS.card, border:`1px solid rgba(255,255,255,0.08)`, borderRadius:12, padding:16 },
+  label: { fontSize:9, fontWeight:700, letterSpacing:2, textTransform:"uppercase", color:COLORS.cyan, marginBottom:8, display:"flex", alignItems:"center", gap:6 },
+  textarea: { width:"100%", background:"rgba(255,255,255,0.04)", border:`1px solid rgba(255,255,255,0.12)`, borderRadius:10, padding:"12px 14px", color:COLORS.white, fontFamily:"inherit", fontSize:13, resize:"none", outline:"none", lineHeight:1.6 },
+  btn: (variant="primary", size="md") => ({
+    display:"inline-flex", alignItems:"center", gap:6, border:"none", borderRadius:8, cursor:"pointer", fontWeight:700, fontSize: size==="sm" ? 11 : 13,
+    padding: size==="sm" ? "6px 12px" : "10px 18px",
+    background: variant==="primary" ? `linear-gradient(135deg,${COLORS.cyan},${COLORS.blue})` : variant==="success" ? `linear-gradient(135deg,${COLORS.green},#059669)` : variant==="danger" ? COLORS.red : "rgba(255,255,255,0.08)",
+    color: COLORS.white,
+    border: variant==="ghost" ? `1px solid rgba(255,255,255,0.12)` : "none",
+    transition:"all 0.15s",
+  }),
+  input: { background:"transparent", border:"none", color:COLORS.white, fontFamily:"inherit", fontSize:13, outline:"none", width:"100%" },
+  select: { background:"transparent", border:"none", color:COLORS.white, fontFamily:"inherit", fontSize:12, outline:"none", cursor:"pointer" },
+  chip: { background:"rgba(255,255,255,0.05)", border:`1px solid rgba(255,255,255,0.1)`, padding:"5px 11px", borderRadius:20, fontSize:11, color:COLORS.gray, cursor:"pointer" },
+  stat: { background:"rgba(6,182,212,0.08)", border:`1px solid rgba(6,182,212,0.2)`, borderRadius:10, padding:"10px 12px", marginTop:12 },
+};
+
+const CLIENTS = [
+  { name:"Martin Bernard", addr:"Paris 75011", phone:"06 11 22 33 44", last:"Chauffe-eau — Jan 2025", tags:[["VIP","gold"],["Actif","green"]] },
+  { name:"Leclerc Sophie", addr:"Versailles 78", phone:"06 55 44 33 22", last:"Chaudière — Fév 2025", tags:[["Actif","green"],["Récurrent","blue"]] },
+  { name:"SCI Les Lilas", addr:"Lyon 69003", phone:"04 72 11 22 33", last:"Salle de bain — Nov 2024", tags:[["Pro","blue"]] },
+  { name:"Dubois Pierre", addr:"Marseille 13", phone:"06 77 88 99 00", last:"Robinetterie — Déc 2024", tags:[["Relance","red"]] },
+  { name:"Résidence du Parc", addr:"Bordeaux 33", phone:"05 56 11 22 33", last:"Entretien — Mar 2025", tags:[["Pro","blue"],["VIP","gold"]] },
+  { name:"Petit Claire", addr:"Nantes 44", phone:"06 33 44 55 66", last:"Climatisation — Jan 2025", tags:[["Actif","green"]] },
+];
+
+const FACTURES = [
+  { num:"FAC-2025-003", client:"Martin Bernard", desc:"Remplacement chauffe-eau", montant:"1 240,00 €", date:"15/03/2025", status:"paid", label:"Payée" },
+  { num:"FAC-2025-002", client:"Leclerc Sophie", desc:"Installation chaudière gaz", montant:"3 850,00 €", date:"08/03/2025", status:"pending", label:"En attente" },
+  { num:"FAC-2025-001", client:"SCI Les Lilas", desc:"Réfection salle de bain", montant:"4 200,00 €", date:"01/03/2025", status:"late", label:"En retard" },
+  { num:"FAC-2024-048", client:"Dubois Pierre", desc:"Débouchage + robinetterie", montant:"420,00 €", date:"15/12/2024", status:"paid", label:"Payée" },
+];
+
+const PLANNING = [
+  { day:"Lundi 3", items:[{t:"08:00",title:"Fuite urgent",client:"M. Rousseau",type:"urgent"},{t:"14:00",title:"Entretien chaudière",client:"Mme Blanc",type:""}] },
+  { day:"Mardi 4", items:[{t:"09:00",title:"Robinetterie",client:"SCI Les Lilas",type:""},{t:"15:30",title:"Devis salle de bain",client:"M. Simon",type:"done"}] },
+  { day:"Mercredi 5", items:[{t:"08:30",title:"Pose chaudière",client:"M. Martin",type:""}] },
+  { day:"Jeudi 6", items:[{t:"09:00",title:"Débouchage",client:"Résidence Parc",type:""},{t:"14:00",title:"Climatisation",client:"M. Petit",type:"urgent"}] },
+  { day:"Vendredi 7", items:[{t:"10:00",title:"Réception chantier",client:"Mme Leclerc",type:""},{t:"14:30",title:"Réunion chantier",client:"Promoteur XY",type:""}] },
+];
+
+const EXAMPLES = [
+  { emoji:"🚿", label:"Fuite robinet", prompt:"Réparation fuite robinet mitigeur salle de bain, remplacement joint et cartouche, appartement Paris 75011, 3ème étage sans ascenseur." },
+  { emoji:"🔥", label:"Chaudière gaz", prompt:"Installation chaudière gaz condensation Viessmann 24kW en remplacement ancienne chaudière, logement 80m², raccordements gaz et hydraulique, mise en service." },
+  { emoji:"🪣", label:"Débouchage urgent", prompt:"Débouchage canalisation WC bouchée en urgence, immeuble Paris 75015, intervention le soir même." },
+  { emoji:"🛁", label:"Salle de bain", prompt:"Création salle de bain complète: douche italienne 90x90, meuble vasque double, WC suspendu, sèche-serviettes. Maison Lyon." },
+  { emoji:"❄️", label:"Climatisation", prompt:"Pose climatisation réversible split 3.5kW pour séjour 30m², Daikin, percement mur porteur, mise en service. Marseille 13008." },
+];
+
+function TagBadge({ label, color }) {
+  const colors = { gold:"rgba(245,158,11,0.2);#F59E0B", green:"rgba(16,185,129,0.2);#10B981", blue:"rgba(26,86,219,0.2);#60A5FA", red:"rgba(239,68,68,0.2);#EF4444" };
+  const [bg, fg] = (colors[color] || colors.blue).split(";");
+  return <span style={{ background:bg, color:fg, fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:6 }}>{label}</span>;
+}
+
+function NavItem({ icon, label, badge, active, onClick }) {
+  return (
+    <button onClick={onClick} style={{
+      display:"flex", alignItems:"center", gap:8, padding:"9px 10px", borderRadius:8, cursor:"pointer",
+      background: active ? "rgba(6,182,212,0.12)" : "transparent",
+      color: active ? COLORS.cyan : COLORS.gray,
+      border:"none", width:"100%", textAlign:"left", fontSize:13, fontWeight:500,
+      transition:"all 0.15s",
+    }}>
+      <span style={{fontSize:15,width:18,textAlign:"center"}}>{icon}</span>
+      <span style={{flex:1}}>{label}</span>
+      {badge && <span style={{background:COLORS.cyan,color:COLORS.navy,fontSize:9,fontWeight:800,padding:"2px 6px",borderRadius:8}}>{badge}</span>}
+    </button>
+  );
+}
+
+function DevisModule({ devisCount, setDevisCount }) {
+  const [prompt, setPrompt] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState(0);
+  const [devis, setDevis] = useState(null);
+  const [lines, setLines] = useState([]);
+  const [toast, setToast] = useState("");
+  const [clientName, setClientName] = useState("");
+  const [clientAddr, setClientAddr] = useState("");
+
+  const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(""),3000); };
+
+  const STEPS = ["Identification des travaux","Calcul des fournitures","Estimation main d'œuvre","Application grille tarifaire"];
+
+  const generate = async () => {
+    if (!prompt.trim()) { showToast("⚠️ Décrivez d'abord le chantier !"); return; }
+    setLoading(true); setDevis(null); setStep(0);
+    for (let i = 0; i < 4; i++) { await new Promise(r=>setTimeout(r,420)); setStep(i+1); }
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          model:"claude-sonnet-4-20250514", max_tokens:1000,
+          system:`Tu es un expert en plomberie/chauffage français. Génère un devis JSON uniquement, sans texte autour.
+Format: {"title":"Titre court","client_name":"Nom client","client_address":"Adresse","lines":[{"desc":"Description","qty":1,"unit":"forfait","pu_ht":150,"tva":10}],"notes":"Conditions..."}
+Règles: prix marché français 2025 (plombier 60-90€/h HT, chauffagiste 70-100€/h HT), TVA 10% rénovation / 20% matériel seul, 4-8 lignes réalistes, unités: forfait/h/u/ml/m2`,
+          messages:[{role:"user",content:`Chantier: ${prompt}`}]
+        })
+      });
+      const data = await res.json();
+      const text = data.content?.map(c=>c.text||"").join("").replace(/```json|```/g,"").trim();
+      const parsed = JSON.parse(text);
+      setDevis(parsed);
+      setLines(parsed.lines.map((l,i)=>({...l,id:i})));
+      setClientName(parsed.client_name||"");
+      setClientAddr(parsed.client_address||"");
+      setDevisCount(n=>n+1);
+    } catch {
+      const fallback = { title:"Travaux Plomberie", client_name:"M./Mme Client", client_address:"", notes:"Paiement: 30% commande, solde réception. Garantie MO 1 an. Valable 30 jours.", lines:[
+        {desc:"Déplacement et diagnostic",qty:1,unit:"forfait",pu_ht:65,tva:20},
+        {desc:"Main d'œuvre plombier qualifié",qty:3,unit:"h",pu_ht:78,tva:10},
+        {desc:"Fournitures et matériaux",qty:1,unit:"forfait",pu_ht:185,tva:20},
+        {desc:"Mise en service et tests",qty:1,unit:"forfait",pu_ht:55,tva:10},
+      ]};
+      setDevis(fallback);
+      setLines(fallback.lines.map((l,i)=>({...l,id:i})));
+      setClientName(fallback.client_name);
+      setClientAddr("");
+      setDevisCount(n=>n+1);
+    }
+    setLoading(false);
+  };
+
+  const updateLine = (id, field, val) => setLines(ls=>ls.map(l=>l.id===id?{...l,[field]:field==="qty"||field==="pu_ht"?parseFloat(val)||0:val}:l));
+  const addLine = () => setLines(ls=>[...ls,{id:Date.now(),desc:"Nouvelle prestation",qty:1,unit:"h",pu_ht:75,tva:10}]);
+  const removeLine = (id) => setLines(ls=>ls.filter(l=>l.id!==id));
+
+  const subtotal = lines.reduce((s,l)=>s+(l.qty*l.pu_ht),0);
+  const tvaAmt = lines.reduce((s,l)=>s+(l.qty*l.pu_ht*(l.tva/100)),0);
+  const ttc = subtotal+tvaAmt;
+  const fmt = (n) => n.toLocaleString("fr-FR",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
+  const today = new Date().toLocaleDateString("fr-FR",{day:"2-digit",month:"long",year:"numeric"});
+  const numStr = `DEV-${new Date().getFullYear()}-${String(devisCount).padStart(3,"0")}`;
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:16}}>
+      <div>
+        <div style={styles.pageTitle}>Générateur de <span style={{color:COLORS.cyan}}>Devis IA</span></div>
+        <div style={styles.pageSub}>Décrivez le chantier — l'IA génère un devis complet en quelques secondes</div>
+      </div>
+
+      {/* AI INPUT */}
+      <div style={{...styles.card, position:"relative", borderTop:`2px solid ${COLORS.cyan}`}}>
+        <div style={styles.label}>⚡ IA Prête</div>
+        <textarea
+          style={{...styles.textarea, minHeight:80, paddingRight:120}}
+          placeholder="Ex: Remplacement chauffe-eau 200L thermodynamique, cave difficile d'accès, Lyon 69003..."
+          value={prompt} onChange={e=>setPrompt(e.target.value)}
+          onKeyDown={e=>e.key==="Enter"&&e.ctrlKey&&generate()}
+        />
+        <button style={{...styles.btn("primary"), position:"absolute", right:24, bottom:56}} onClick={generate} disabled={loading}>
+          {loading ? "⏳" : "⚡"} Générer
+        </button>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:10}}>
+          {EXAMPLES.map(ex=>(
+            <span key={ex.label} style={styles.chip} onClick={()=>setPrompt(ex.prompt)}>
+              {ex.emoji} {ex.label}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* LOADING */}
+      {loading && (
+        <div style={{...styles.card, textAlign:"center", padding:24}}>
+          <div style={{width:32,height:32,border:`3px solid rgba(6,182,212,0.2)`,borderTopColor:COLORS.cyan,borderRadius:"50%",animation:"spin 0.8s linear infinite",margin:"0 auto 12px"}}/>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+          <div style={{fontSize:13,color:COLORS.gray,marginBottom:8}}>L'IA analyse votre description…</div>
+          {STEPS.map((s,i)=>(
+            <div key={s} style={{fontSize:12, padding:"3px 0", color: i<step?COLORS.green : i===step-1?COLORS.cyan : COLORS.gray2}}>
+              {i<step?"✓":i===step-1?"⟳":"·"} {s}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* DEVIS RESULT */}
+      {devis && !loading && (
+        <div style={{...styles.card, padding:0, overflow:"hidden"}}>
+          {/* Header */}
+          <div style={{background:`linear-gradient(135deg,${COLORS.card2},${COLORS.card})`,padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"flex-start",borderBottom:`1px solid rgba(255,255,255,0.07)`}}>
+            <div>
+              <div style={{fontSize:16,fontWeight:800}}>Devis — {devis.title}</div>
+              <div style={{fontSize:11,color:COLORS.gray,marginTop:2}}>Créé le {today} · Valable 30 jours</div>
+            </div>
+            <div style={{background:"rgba(6,182,212,0.15)",border:`1px solid rgba(6,182,212,0.3)`,color:COLORS.cyan,padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:800}}>{numStr}</div>
+          </div>
+
+          <div style={{padding:"16px 20px",display:"flex",flexDirection:"column",gap:14}}>
+            {/* Info grid */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              {[["👷 Votre entreprise",["Jean-Marc Dupont Plomberie","06 12 34 56 78 · SIRET: 123 456 789"]],["🏠 Client",[clientName,clientAddr]]].map(([lbl,vals],i)=>(
+                <div key={lbl} style={{background:"rgba(255,255,255,0.03)",border:`1px solid rgba(255,255,255,0.07)`,borderRadius:8,padding:12}}>
+                  <div style={{fontSize:9,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:COLORS.gray2,marginBottom:6}}>{lbl}</div>
+                  {i===1 ? <>
+                    <input style={styles.input} value={clientName} onChange={e=>setClientName(e.target.value)} placeholder="Nom du client"/>
+                    <input style={{...styles.input,fontSize:11,color:COLORS.gray,marginTop:3}} value={clientAddr} onChange={e=>setClientAddr(e.target.value)} placeholder="Adresse du chantier"/>
+                  </> : vals.map((v,j)=>(
+                    <div key={j} style={{fontSize:j===0?13:11,color:j===0?COLORS.white:COLORS.gray,marginBottom:j===0?2:0}}>{v}</div>
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            {/* Table */}
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse"}}>
+                <thead>
+                  <tr style={{background:"rgba(255,255,255,0.03)"}}>
+                    {["Description","Qté","Unité","P.U. HT","TVA","Total HT",""].map((h,i)=>(
+                      <th key={i} style={{padding:"8px 10px",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1.5,color:COLORS.gray2,textAlign:i>=4?"right":"left",borderBottom:`1px solid rgba(255,255,255,0.07)`,whiteSpace:"nowrap"}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.map(line=>(
+                    <tr key={line.id} style={{borderBottom:`1px solid rgba(255,255,255,0.04)`}}>
+                      <td style={{padding:"10px 10px"}}><input style={{...styles.input,fontSize:13}} value={line.desc} onChange={e=>updateLine(line.id,"desc",e.target.value)}/></td>
+                      <td style={{padding:"10px 10px"}}><input type="number" style={{...styles.input,width:50,textAlign:"center"}} value={line.qty} onChange={e=>updateLine(line.id,"qty",e.target.value)}/></td>
+                      <td style={{padding:"10px 10px"}}>
+                        <select style={styles.select} value={line.unit} onChange={e=>updateLine(line.id,"unit",e.target.value)}>
+                          {["forfait","h","u","ml","m2"].map(u=><option key={u} value={u}>{u}</option>)}
+                        </select>
+                      </td>
+                      <td style={{padding:"10px 10px"}}><input type="number" style={{...styles.input,width:75,textAlign:"right"}} value={line.pu_ht} onChange={e=>updateLine(line.id,"pu_ht",e.target.value)}/></td>
+                      <td style={{padding:"10px 10px",textAlign:"right"}}>
+                        <select style={{...styles.select,textAlign:"right"}} value={line.tva} onChange={e=>updateLine(line.id,"tva",parseFloat(e.target.value))}>
+                          {[5.5,10,20].map(t=><option key={t} value={t}>{t}%</option>)}
+                        </select>
+                      </td>
+                      <td style={{padding:"10px 10px",textAlign:"right",fontWeight:700,fontSize:13,whiteSpace:"nowrap"}}>{fmt(line.qty*line.pu_ht)}</td>
+                      <td style={{padding:"10px 6px",textAlign:"center"}}>
+                        <button onClick={()=>removeLine(line.id)} style={{background:"none",border:"none",color:COLORS.gray2,cursor:"pointer",fontSize:14,padding:2}}>✕</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <button onClick={addLine} style={{background:"rgba(255,255,255,0.04)",border:`1px dashed rgba(255,255,255,0.15)`,color:COLORS.gray,padding:"9px",borderRadius:8,cursor:"pointer",fontSize:12,width:"100%",transition:"all 0.15s"}}>
+              + Ajouter une ligne
+            </button>
+
+            {/* Totals */}
+            <div style={{display:"flex",justifyContent:"flex-end"}}>
+              <div style={{width:260,border:`1px solid rgba(255,255,255,0.08)`,borderRadius:10,overflow:"hidden"}}>
+                {[["Sous-total HT",fmt(subtotal),COLORS.white],["TVA",fmt(tvaAmt),COLORS.gray]].map(([k,v,c])=>(
+                  <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"9px 14px",borderBottom:`1px solid rgba(255,255,255,0.05)`}}>
+                    <span style={{fontSize:12,color:COLORS.gray}}>{k}</span>
+                    <span style={{fontSize:12,fontWeight:600,color:c}}>{v}</span>
+                  </div>
+                ))}
+                <div style={{display:"flex",justifyContent:"space-between",padding:"12px 14px",background:"rgba(6,182,212,0.1)"}}>
+                  <span style={{fontSize:13,fontWeight:800}}>TOTAL TTC</span>
+                  <span style={{fontSize:16,fontWeight:800,color:COLORS.cyan}}>{fmt(ttc)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div style={{background:"rgba(255,255,255,0.03)",border:`1px solid rgba(255,255,255,0.07)`,borderRadius:8,padding:12,fontSize:12,color:COLORS.gray,lineHeight:1.7}}>
+              {devis.notes}
+            </div>
+
+            {/* Actions */}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",paddingTop:12,borderTop:`1px solid rgba(255,255,255,0.06)`}}>
+              <button style={styles.btn("primary")} onClick={()=>showToast("📥 PDF prêt — disponible dans la version complète")}>📥 PDF</button>
+              <button style={styles.btn("success")} onClick={()=>showToast("📧 Email envoyé au client !")}>📧 Email client</button>
+              <button style={styles.btn("ghost")} onClick={()=>showToast("⎘ Devis dupliqué !")}>⎘ Dupliquer</button>
+              <button style={{...styles.btn("ghost"),marginLeft:"auto"}} onClick={()=>{setDevis(null);setPrompt("");}}>+ Nouveau</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div style={{position:"fixed",bottom:20,right:20,background:COLORS.card2,border:`1px solid rgba(6,182,212,0.3)`,borderRadius:10,padding:"12px 18px",fontSize:13,boxShadow:"0 16px 40px rgba(0,0,0,0.4)",zIndex:1000,animation:"fadeIn 0.2s ease"}}>
+          <style>{`@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ClientsModule() {
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:16}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div style={styles.pageTitle}>Mes <span style={{color:COLORS.cyan}}>Clients</span></div>
+          <div style={styles.pageSub}>6 clients dans votre portefeuille</div>
+        </div>
+        <button style={styles.btn("primary","sm")}>+ Ajouter</button>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
+        {CLIENTS.map(c=>(
+          <div key={c.name} style={{...styles.card, cursor:"pointer", transition:"all 0.2s"}}>
+            <div style={{fontSize:14,fontWeight:800,marginBottom:4}}>{c.name}</div>
+            <div style={{fontSize:11,color:COLORS.gray,lineHeight:1.8}}>
+              📍 {c.addr}<br/>📞 {c.phone}<br/>🔧 {c.last}
+            </div>
+            <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:8}}>
+              {c.tags.map(([t,col])=><TagBadge key={t} label={t} color={col}/>)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FacturesModule() {
+  const statusStyle = { paid:"rgba(16,185,129,0.15);#10B981", pending:"rgba(245,158,11,0.15);#F59E0B", late:"rgba(239,68,68,0.15);#EF4444" };
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:16}}>
+      <div>
+        <div style={styles.pageTitle}>Mes <span style={{color:COLORS.cyan}}>Factures</span></div>
+        <div style={styles.pageSub}>Suivi des paiements</div>
+      </div>
+      <div style={{...styles.card,padding:0,overflow:"hidden"}}>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead>
+            <tr style={{background:"rgba(255,255,255,0.04)"}}>
+              {["N° Facture","Client","Travaux","Montant TTC","Date","Statut"].map(h=>(
+                <th key={h} style={{padding:"10px 14px",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1.5,color:COLORS.gray2,textAlign:"left",borderBottom:`1px solid rgba(255,255,255,0.07)`}}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {FACTURES.map(f=>{
+              const [bg,fg] = statusStyle[f.status].split(";");
+              return (
+                <tr key={f.num} style={{borderBottom:`1px solid rgba(255,255,255,0.04)`,cursor:"pointer"}}>
+                  <td style={{padding:"12px 14px",fontSize:12,fontWeight:800,color:COLORS.cyan}}>{f.num}</td>
+                  <td style={{padding:"12px 14px",fontSize:13}}>{f.client}</td>
+                  <td style={{padding:"12px 14px",fontSize:12,color:COLORS.gray}}>{f.desc}</td>
+                  <td style={{padding:"12px 14px",fontSize:13,fontWeight:700}}>{f.montant}</td>
+                  <td style={{padding:"12px 14px",fontSize:12,color:COLORS.gray}}>{f.date}</td>
+                  <td style={{padding:"12px 14px"}}><span style={{background:bg,color:fg,fontSize:10,fontWeight:700,padding:"4px 10px",borderRadius:6}}>{f.label}</span></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function PlanningModule() {
+  const typeColor = { urgent:["rgba(245,158,11,0.12)",COLORS.gold], done:["rgba(16,185,129,0.1)","#059669"], "":["rgba(6,182,212,0.1)",COLORS.cyan] };
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:16}}>
+      <div>
+        <div style={styles.pageTitle}>Mon <span style={{color:COLORS.cyan}}>Planning</span></div>
+        <div style={styles.pageSub}>Semaine du 3 au 7 mars 2025</div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10}}>
+        {PLANNING.map(day=>(
+          <div key={day.day} style={styles.card}>
+            <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:1.5,color:COLORS.gray2,marginBottom:10}}>{day.day}</div>
+            {day.items.map((item,i)=>{
+              const [bg,border] = typeColor[item.type]||typeColor[""];
+              return (
+                <div key={i} style={{background:bg,borderLeft:`3px solid ${border}`,borderRadius:6,padding:"8px 10px",marginBottom:6}}>
+                  <div style={{fontSize:10,color:COLORS.gray,marginBottom:2}}>{item.t}</div>
+                  <div style={{fontSize:12,fontWeight:700}}>{item.title}</div>
+                  <div style={{fontSize:11,color:COLORS.gray,marginTop:1}}>{item.client}</div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function PlombIA() {
+  const [tab, setTab] = useState("devis");
+  const [devisCount, setDevisCount] = useState(3);
+
+  const NAV = [
+    { id:"devis", icon:"⚡", label:"Devis IA", badge:"NEW" },
+    { id:"clients", icon:"👥", label:"Clients" },
+    { id:"factures", icon:"📄", label:"Factures" },
+    { id:"planning", icon:"📅", label:"Planning" },
+  ];
+
+  return (
+    <div style={styles.app}>
+      {/* Header */}
+      <div style={styles.header}>
+        <div style={styles.logo}>
+          <div style={styles.logoIcon}>🔧</div>
+          Plomb<span style={{color:COLORS.cyan}}>IA</span>
+        </div>
+        <div style={styles.badge}>✦ Propulsé par IA</div>
+      </div>
+
+      <div style={styles.body}>
+        {/* Sidebar */}
+        <nav style={styles.sidebar}>
+          <div style={styles.navSection}>Navigation</div>
+          {NAV.map(n=>(
+            <NavItem key={n.id} icon={n.icon} label={n.label} badge={n.id==="devis"?n.badge:null} active={tab===n.id} onClick={()=>setTab(n.id)}/>
+          ))}
+
+          <div style={{...styles.stat, marginTop:"auto"}}>
+            <div style={{fontSize:9,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:COLORS.gray2,marginBottom:8}}>Ce mois</div>
+            {[["Devis générés", devisCount, COLORS.cyan],["Taux acceptation","67%",COLORS.green],["CA en cours","4 820 €",COLORS.gold]].map(([k,v,c])=>(
+              <div key={k} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                <span style={{fontSize:11,color:COLORS.gray}}>{k}</span>
+                <span style={{fontSize:14,fontWeight:800,color:c,fontVariantNumeric:"tabular-nums"}}>{v}</span>
+              </div>
+            ))}
+          </div>
+
+          <NavItem icon="⚙️" label="Paramètres" active={false} onClick={()=>{}}/>
+        </nav>
+
+        {/* Main */}
+        <main style={styles.main}>
+          {tab==="devis" && <DevisModule devisCount={devisCount} setDevisCount={setDevisCount}/>}
+          {tab==="clients" && <ClientsModule/>}
+          {tab==="factures" && <FacturesModule/>}
+          {tab==="planning" && <PlanningModule/>}
+        </main>
+      </div>
+    </div>
+  );
+}
